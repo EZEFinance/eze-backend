@@ -39,11 +39,13 @@ async function updateStakingData(contractAddress: keyof typeof LOGOS) {
       where: { address: contractAddress },
       update: { tvl: formattedTVL, apy: formattedAPY, updatedAt: new Date() },
       create: {
-        address: contractAddress,
-        chain: "Base Sepolia",
-        apy: formattedAPY,
-        logo: LOGOS[contractAddress] || "",
-        tvl: formattedTVL,
+      address: contractAddress,
+      chain: "Base Sepolia",
+      apy: formattedAPY,
+      stablecoin: contractAddress === STAKING_USDC ? true : false,
+      categories: ["Staking", contractAddress === STAKING_USDC ? "Stablecoin" : ""].filter(Boolean),
+      logo: LOGOS[contractAddress] || "",
+      tvl: formattedTVL,
       },
     });
 

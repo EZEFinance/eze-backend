@@ -14,12 +14,14 @@ datasource db {
 }
 
 model Staking {
-  id        String   @id @default(cuid())
-  address   String   @unique
-  chain     String
-  apy       Float
-  tvl       Float
-  logo      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  address    String   @unique
+  chain      String
+  apy        Float
+  tvl        Float
+  stablecoin Boolean
+  categories String[]
+  logo       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
