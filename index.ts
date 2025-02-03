@@ -1,4 +1,5 @@
 import express from "express";
+import type { Request, Response } from "express";
 import { ethers } from "ethers";
 import { PrismaClient } from "@prisma/client";
 import * as dotenv from "dotenv";
@@ -12,79 +13,108 @@ const prisma = new PrismaClient();
 const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
 
 app.use(cors());
+app.use(express.json());
 
-const STAKING_UNI = "0x3aFe03488D537BCB7E5F54140574598d310058a6";
-const STAKING_USDC = "0x14337d818c67e888Cb8015AbEcD6E3A1a5A824a3";
+const MOCK_TOKENS = {
+  UNI: {
+    token: "0xd3B8E3280baa0af587614a011CD81c592FA8312d",
+    staking: "0x3aFe03488D537BCB7E5F54140574598d310058a6"
+  },
+  USDC: {
+    token: "0xE94beF2B81147e984aF42A30052BD7D1E3438B94",
+    staking: "0x14337d818c67e888Cb8015AbEcD6E3A1a5A824a3"
+  }
+};
+
+const LOGOS = {
+  [MOCK_TOKENS.UNI.token]: "https://cryptologos.cc/logos/uniswap-uni-logo.png",
+  [MOCK_TOKENS.USDC.token]: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png",
+};
 
 const stakingABI = [
   "function fixedAPY() public view returns (uint8)",
   "function totalAmountStaked() public view returns (uint256)",
 ];
 
-const LOGOS = {
-  [STAKING_UNI]: "https://cryptologos.cc/logos/uniswap-uni-logo.png",
-  [STAKING_USDC]: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png",
-};
-
-async function updateStakingData(contractAddress: keyof typeof LOGOS) {
+async function updateStakingData(tokenKey: keyof typeof MOCK_TOKENS) {
   try {
-    const contract = new ethers.Contract(contractAddress, stakingABI, provider);
+    const { token, staking } = MOCK_TOKENS[tokenKey];
+    const contract = new ethers.Contract(staking, stakingABI, provider);
+
     const apy = await contract.fixedAPY();
     const totalStaked = await contract.totalAmountStaked();
-    
+
     const formattedTVL = Number(ethers.formatUnits(totalStaked, 18));
     const formattedAPY = Number(apy);
 
     await prisma.staking.upsert({
-      where: { address: contractAddress },
-      update: { tvl: formattedTVL, apy: formattedAPY, updatedAt: new Date() },
+      where: { addressToken: token },
+      update: {
+        tvl: formattedTVL,
+        apy: formattedAPY,
+        updatedAt: new Date()
+      },
       create: {
-      address: contractAddress,
-      chain: "Base Sepolia",
-      apy: formattedAPY,
-      stablecoin: contractAddress === STAKING_USDC ? true : false,
-      categories: ["Staking", contractAddress === STAKING_USDC ? "Stablecoin" : ""].filter(Boolean),
-      logo: LOGOS[contractAddress] || "",
-      tvl: formattedTVL,
+        addressToken: token,
+        addressStaking: staking,
+        nameToken: tokenKey === "UNI" ? "UNI" : "USDC",
+        nameProject: tokenKey === "UNI" ? "Uniswap V3" : ["AAVE V3", "Compound"].sort(() => Math.random() - 0.5)[0],
+        chain: "Base Sepolia",
+        apy: formattedAPY,
+        stablecoin: tokenKey === "USDC",
+        categories: ["Staking", tokenKey === "USDC" ? "Stablecoin" : ""].filter(Boolean),
+        logo: LOGOS[token] || "",
+        tvl: formattedTVL,
       },
     });
 
-    console.log(`Updated staking data for ${contractAddress}`);
+    console.log(`Updated staking data for ${tokenKey}`);
   } catch (error) {
-    console.error(`Error updating staking data for ${contractAddress}:`, error);
+    console.error(`Error updating staking data for ${tokenKey}:`, error);
   }
 }
 
-app.get("/staking", async (req, res) => {
+const getStakingData = async (req: Request, res: Response) => {
   try {
     const data = await prisma.staking.findMany();
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch staking data" });
   }
-});
+};
 
-app.get("/staking/:address", async (req, res) => {
+const getStakingByAddress = async (req: any, res: any) => {
   try {
     const data = await prisma.staking.findUnique({
-      where: { address: req.params.address },
+      where: { addressToken: req.params.address },
     });
+
+    if (!data) {
+      return res.status(404).json({ error: "Staking data not found" });
+    }
+
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch staking data" });
   }
-});
+};
 
-app.post("/staking/update", async (req, res) => {
+const updateStaking = async (req: Request, res: Response) => {
   try {
-    await updateStakingData(STAKING_UNI);
-    await updateStakingData(STAKING_USDC);
+    await updateStakingData("UNI");
+    await updateStakingData("USDC");
     res.json({ message: "Staking data updated successfully" });
   } catch (error) {
     res.status(500).json({ error: "Failed to update staking data" });
   }
-});
+};
+
+app.get("/staking", getStakingData);
+app.get("/staking/:address", getStakingByAddress);
+app.post("/staking/update", updateStaking);
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
+
+export default app;
