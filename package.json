@@ -3,10 +3,10 @@
   "module": "index.ts",
   "type": "module",
   "scripts": {
-    "start": "bun run index.ts",
-    "dev": "bun run index.ts",
-    "build": "tsup app --clean --format cjs,esm --env.NODE_ENV production",
-    "vercel-build": "tsup app --clean --format cjs --env.NODE_ENV production --env.DEPLOYMENT_ENV vercel --out-dir api"
+    "start": "node dist/index.js",
+    "dev": "ts-node index.ts",
+    "build": "tsc",
+    "postinstall": "prisma generate"
   },
   "devDependencies": {
     "@types/bun": "latest"
