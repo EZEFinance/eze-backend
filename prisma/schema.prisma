@@ -14,7 +14,7 @@ datasource db {
 }
 
 model Staking {
-  id             String   @id @default(cuid())
+  idProtocol     String   @unique
   addressToken   String   @unique
   addressStaking String   @unique
   nameToken      String

@@ -75,6 +75,7 @@ async function updateStakingData(tokenKey: keyof typeof MOCK_TOKENS) {
         updatedAt: new Date()
       },
       create: {
+        idProtocol: MOCK_TOKENS[tokenKey].nameProject + "_" + tokenKey,
         addressToken: token,
         addressStaking: staking,
         nameToken: tokenKey,
