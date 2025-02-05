@@ -17,18 +17,38 @@ app.use(express.json());
 
 const MOCK_TOKENS = {
   UNI: {
-    token: "0xC418dAb8482E4E5c31d861Fdd2461E8F2f88d5AE",
-    staking: "0xe3F42d10A7b3126c0121859AFe19891A5bBb686d"
+    token: "0xbb072b81D265D4F574b324Cea7469C9369281Da0",
+    staking: "0x13aB00A1Fae23DCC5618690480cfdE86B04Bbaeb",
+    nameProject: "Uniswap"
   },
   USDC: {
-    token: "0xaCA31A7E4d867f5C3180f401390DCF2d462B06B9",
-    staking: "0x9232cA7b6b21a9E2782a5D21A82030C2799b374a"
+    token: "0x8fD29CC673C16d0466D5eA0250dC3d040554F4a3",
+    staking: "0x55C30Ff712b97B3692fd4f838D13D84DE8Be38B4",
+    nameProject: "Aave"
+  },
+  USDT: {
+    token: "0xaa7DcAae6C6e579A326B860572Da90A149Dc1266",
+    staking: "0x71417c20c60eD165026336922925C4f25439B3a0",
+    nameProject: "Compound"
+  },
+  DAI: {
+    token: "0x9A410E847e6161c96C72a7C40beaDAD5c86ea6aE",
+    staking: "0xdbE2c044D5F350807c437A1b3748191FE9D83250",
+    nameProject: "Renzo"
+  },
+  WETH: {
+    token: "0x1133c55280Be106f985622bF56dcc7Fb3C3D6Ee0",
+    staking: "0x64D28469CAa42C51C57f42aCfD975E8AC4C1b0D2",
+    nameProject: "Cardano"
   }
 };
 
 const LOGOS = {
   [MOCK_TOKENS.UNI.token]: "https://cryptologos.cc/logos/uniswap-uni-logo.png",
   [MOCK_TOKENS.USDC.token]: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png",
+  [MOCK_TOKENS.USDT.token]: "https://cryptologos.cc/logos/tether-usdt-logo.png",
+  [MOCK_TOKENS.DAI.token]: "https://cryptologos.cc/logos/dai-dai-logo.png",
+  [MOCK_TOKENS.WETH.token]: "https://img.cryptorank.io/coins/weth1701090834118.png",
 };
 
 const stakingABI = [
@@ -44,7 +64,7 @@ async function updateStakingData(tokenKey: keyof typeof MOCK_TOKENS) {
     const apy = await contract.fixedAPY();
     const totalStaked = await contract.totalAmountStaked();
 
-    const formattedTVL = Number(ethers.formatUnits(totalStaked, 18));
+    const formattedTVL = Number(ethers.formatUnits(totalStaked, 6));
     const formattedAPY = Number(apy);
 
     await prisma.staking.upsert({
@@ -57,12 +77,12 @@ async function updateStakingData(tokenKey: keyof typeof MOCK_TOKENS) {
       create: {
         addressToken: token,
         addressStaking: staking,
-        nameToken: tokenKey === "UNI" ? "UNI" : "USDC",
-        nameProject: tokenKey === "UNI" ? "Uniswap V3" : ["AAVE V3", "Compound"].sort(() => Math.random() - 0.5)[0],
+        nameToken: tokenKey,
+        nameProject: MOCK_TOKENS[tokenKey].nameProject,
         chain: "Base Sepolia",
         apy: formattedAPY,
-        stablecoin: tokenKey === "USDC",
-        categories: ["Staking", tokenKey === "USDC" ? "Stablecoin" : ""].filter(Boolean),
+        stablecoin: tokenKey === "USDC" || tokenKey === "USDT" ? true : false,
+        categories: ["Staking", tokenKey === "USDC" || tokenKey === "USDT" ? "Stablecoin" : ""].filter(Boolean),
         logo: LOGOS[token] || "",
         tvl: formattedTVL,
       },
@@ -101,9 +121,13 @@ const getStakingByAddress = async (req: any, res: any) => {
 
 const updateStaking = async (req: Request, res: Response) => {
   try {
-    await updateStakingData("UNI");
-    await updateStakingData("USDC");
-    res.json({ message: "Staking data updated successfully" });
+    const updatePromises = Object.keys(MOCK_TOKENS).map((tokenKey) =>
+      updateStakingData(tokenKey as keyof typeof MOCK_TOKENS)
+    );
+
+    await Promise.all(updatePromises);
+
+    res.json({ message: "All staking data updated successfully" });
   } catch (error) {
     res.status(500).json({ error: "Failed to update staking data" });
   }
