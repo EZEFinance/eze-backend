@@ -104,6 +104,22 @@ const getStakingData = async (req: Request, res: Response) => {
   }
 };
 
+const getStakingByIdProtocol = async (req: any, res: any) => {
+  try {
+    const data = await prisma.staking.findMany({
+      where: { idProtocol: req.params.idProtocol },
+    });
+
+    if (!data) {
+      return res.status(404).json({ error: "Staking data not found" });
+    }
+
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch staking data" });
+  }
+};
+
 const getStakingByAddress = async (req: any, res: any) => {
   try {
     const data = await prisma.staking.findUnique({
@@ -135,6 +151,7 @@ const updateStaking = async (req: Request, res: Response) => {
 };
 
 app.get("/staking", getStakingData);
+app.get("/staking/:idProtocol", getStakingByIdProtocol);
 app.get("/staking/:address", getStakingByAddress);
 app.post("/staking/update", updateStaking);
 
